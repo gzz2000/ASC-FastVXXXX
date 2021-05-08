@@ -12,12 +12,14 @@ import multiprocessing
 from Bio import SeqIO
 from tqdm import tqdm, trange
 
+import build.hamming as hamming_cpp
+
 valid_nuc = set(["A", "C", "G", "T"])
-pos_freq = {}
-pos_ref = {}
+pos_freq = []
+pos_ref = []
 
 
-def hamming(seq1: str, seq2: str, poss_freq: dict):
+def hamming_py(seq1: str, seq2: str, poss_freq: dict):
     seq1 = seq1.upper()
     seq2 = seq2.upper()
     distance = 0
@@ -61,8 +63,8 @@ def init_freq(in_file: str):
         infile.readline()
         for line in infile:
             splitline = line.rstrip().split("\t")
-            pos_ref[count] = int(splitline[0])
-            pos_freq[count] = float(splitline[2])
+            pos_ref.append(int(splitline[0]))
+            pos_freq.append(float(splitline[2]))
             count += 1
 
 
@@ -80,13 +82,13 @@ def seq2geno(seq: str, seqindex: list):
     return genos
 
 
-def exec_queue(iter: int, seqss: list, poss_freq: dict, out_file: str):
+def exec_queue_py(iter: int, seqss: list, poss_freq: dict, out_file: str):
     outfile = open(out_file, "a+")
     # for i in tqdm(range(len(seqss)), desc=str(iter)):
     for i in trange(len(seqss), leave=False, desc="H" + str(iter),
                     position=int(multiprocessing.current_process().name.split("-")[1])):
         if iter < i:
-            distance, max_maf, diff = hamming(seqss[iter], seqss[i], poss_freq)
+            distance, max_maf, diff = hamming_py(seqss[iter], seqss[i], poss_freq)
             outfile.write("%d\t%d\t%d\t%f\t%s\n" % (iter, i, distance, max_maf, ",".join(diff)))
             outfile.flush()
     outfile.close()
@@ -154,13 +156,14 @@ def haplotype_network(pi_pos_file: str, freq_file: str, draw_net: bool):
         tempfile = os.path.join(os.path.dirname(pi_pos_file), "candidate_links.txt")
         if os.path.exists(tempfile):
             os.remove(tempfile)
-        p = multiprocessing.Pool(multiprocessing.cpu_count(), initializer=tqdm.set_lock,
-                                 initargs=(multiprocessing.RLock(),))
         # p = multiprocessing.Pool(multiprocessing.cpu_count())
-        for i in range(len(seqss)):
-            p.apply_async(exec_queue, args=(i, seqss, pos_freq, tempfile))
-        p.close()
-        p.join()
+        # p = multiprocessing.Pool(multiprocessing.cpu_count(), initializer=tqdm.set_lock,
+        #                          initargs=(multiprocessing.RLock(),))
+        # for i in range(len(seqss)):
+        #     p.apply_async(exec_queue_py, args=(i, seqss, pos_freq, tempfile))
+        # p.close()
+        # p.join()
+        hamming_cpp.exec_queue(seqss, pos_freq, tempfile)
 
         print("生成候选link列表")
         node_list = []

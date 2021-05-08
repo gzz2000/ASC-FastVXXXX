@@ -4,4 +4,4 @@ project(FastVXXXX LANGUAGES CXX)
 
 add_subdirectory(pybind11)
 
-pybind11_add_module(hamming hamming_parallel.cpp)
+pybind11_add_module(hamming hamming.cpp)
