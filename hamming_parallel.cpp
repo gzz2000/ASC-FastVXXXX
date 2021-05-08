@@ -90,6 +90,7 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 			{
 				for (auto i = i_begin; i < i_end; i++)
 				{
+          if(i >= j) continue;
 					char* p = buf;
 					auto hamming_ret = hamming(seqss_upper[j], seqss_upper[i], poss_freq);
 					p += sprintf(p, "%d\t%d\t%d\t%f\t", i, j, hamming_ret.distance, hamming_ret.max_maf);
@@ -109,7 +110,7 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 			}
 		}
 	};
-	vector<thread> threads(4); // 线程数这里改
+	vector<thread> threads(1); // 线程数这里改
 	for (int i = 0; i < threads.size(); i++)
 		threads[i] = thread(fn);
 	for (int i = 0; i < threads.size(); i++)
