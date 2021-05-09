@@ -180,7 +180,12 @@ def haplotype_network(pi_pos_file: str, freq_file: str, draw_net: bool):
                                   splitline[4]])
 
         print("候选link排序")
-        node_list.sort(key=lambda x: (x[2], x[3]))
+        node_list.sort(key=lambda x: (x[2], x[3], x[0], x[1]))
+
+        # print('dump test')
+        # with open('dumptest.txt', 'w') as f:
+        #     for line in node_list:
+        #         f.write(str(line) + '\n')
 
         print("生成网络")
         net_list = []

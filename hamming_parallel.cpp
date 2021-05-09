@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <random>
 #include <chrono>
+#include <mutex>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -73,48 +74,59 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 		}
 	}
 	ofstream out(out_file);
-	atomic<size_t> I{0};
+  std::mutex lock_stream;
+	atomic<size_t> I = 0;
 	auto fn = [&]()
 	{
-		char buf[0x10000];
+		size_t n = 6000 / seqss_upper[0].size();
+		char* buf = new char[0x10000 * seqss_upper.size()];
 		while (true)
 		{
-			size_t n = 6000 / seqss_upper[0].size();
-			auto i_begin = I += n;
+			size_t i_begin = 0;
+			do {
+				i_begin = I;
+			} while (!I.compare_exchange_strong(i_begin, i_begin + n));
+			
 			if (i_begin >= seqss.size())
 				break;
 			auto i_end = i_begin + n;
 			if (i_end > seqss_upper.size())
 				i_end = seqss_upper.size();
+			char* p = buf;
 			for (auto j = i_begin + 1; j < seqss_upper.size(); j++)
 			{
 				for (auto i = i_begin; i < i_end; i++)
 				{
-          if(i >= j) continue;
-					char* p = buf;
-					auto hamming_ret = hamming(seqss_upper[j], seqss_upper[i], poss_freq);
-					p += sprintf(p, "%d\t%d\t%d\t%f\t", i, j, hamming_ret.distance, hamming_ret.max_maf);
-					if (!hamming_ret.diff.empty())
+					if (i < j)
 					{
-						for (int k = 0; k < hamming_ret.diff.size(); k++)
+						auto hamming_ret = hamming(seqss_upper[i], seqss_upper[j], poss_freq);
+						p += sprintf(p, "%d\t%d\t%d\t%f\t", (int)i, (int)j, hamming_ret.distance, hamming_ret.max_maf);
+						if (!hamming_ret.diff.empty())
 						{
-							p += sprintf(p, "%d", hamming_ret.diff[k]);
-							if (k != hamming_ret.diff.size() - 1)
-								*p++ = ',';
+							for (int k = 0; k < hamming_ret.diff.size(); k++)
+							{
+								p += sprintf(p, "%d", hamming_ret.diff[k]);
+								if (k != hamming_ret.diff.size() - 1)
+									*p++ = ',';
+							}
 						}
+						*p++ = '\n';
 					}
-					*p++ = '\n';
-					*p = '\0';
 				}
-				out << buf;
 			}
+      *p = '\0';
+      
+      std::scoped_lock<std::mutex> lock(lock_stream);
+			out << buf;
 		}
+		delete[] buf;
 	};
 	vector<thread> threads(1); // 线程数这里改
 	for (int i = 0; i < threads.size(); i++)
 		threads[i] = thread(fn);
 	for (int i = 0; i < threads.size(); i++)
 		threads[i].join();
+	out.close();
 }
 
 // int main()
