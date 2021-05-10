@@ -60,7 +60,39 @@ std::tuple<std::vector<int>, std::vector<int>> find_ps_sites(const std::vector<s
   return std::make_tuple(std::move(all_pis), std::move(rm_pis));
 }
 
+std::vector<std::tuple<int, double, int>> pis_freq(const std::vector<std::string> &align_filter, const std::vector<int> &sites, const std::string &seq, int f_base)
+{
+  std::vector<std::tuple<int, double, int>> freqs;
+  std::vector<int> uniq_nc(align_filter[0].length() * num_nc, 0);
+  for(int i = 0; i < align_filter.size(); ++i) {
+#pragma omp parallel for
+    for(int j = 0; j < sites.size(); ++j) {
+      int t = idx_nc(align_filter[i][sites[j]]);
+      if(t < 0) continue;
+      ++uniq_nc[j * num_nc + t];
+    }
+  }
+  // epis_base -= 1;
+  for(int j = 0; j < sites.size(); ++j) {
+    int effective = 0, cur = 0, mx = -1, mxk = -1, sum = 0;
+    for(int k = 0; k < num_nc; ++k) {
+      int v = uniq_nc[j * num_nc + k];
+      if(v) ++effective;
+      if(v > 1) ++cur;
+      if(v > mx) { mx = v; mxk = k; }
+      sum += v;
+    }
+    if(effective <= 1 || sum <= f_base) continue;
+    if(cur > 1 && seq[sites[j]] != '-') {
+      double pos_freq = 1. - (double)mx / sum;
+      freqs.push_back(std::make_tuple(sites[j], pos_freq, sum));
+    }
+  }
+  return freqs;
+}
+
 PYBIND11_MODULE(find_ps_sites, m) {
   // py::bind_vector<std::vector<std::string>>(m, "VectorString");
   m.def("find_ps_sites", &find_ps_sites, "Step 1 find_ps_sites CPP implementation");
+  m.def("pis_freq", &pis_freq, "Step 1 pis_freq CPP implementation");
 }

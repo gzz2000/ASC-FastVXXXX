@@ -22,7 +22,7 @@ import pdb
 import build.find_ps_sites as find_ps_sites_cpp_module
 
 def find_ps_sites_cpp(alignment, seq, remove_fq, epis_base):
-    print('First step (CPP) started');
+    print('First step (CPP) started')
     all_pis, rm_pis = find_ps_sites_cpp_module.find_ps_sites(
         [seqr.seq._data for seqr in alignment],
         seq._data, remove_fq, epis_base)
@@ -69,7 +69,7 @@ def find_ps_sites_py(alignment, seq, remove_fq, epis_base):
 
 find_ps_sites = find_ps_sites_cpp
 
-def pis_freq(align_filter, sites, seq, f_base):
+def pis_freq_py(align_filter, sites, seq, f_base):
     freqs = []
     default_nc = {'a', 't', 'g', 'c', 'A', 'T', 'C', 'G'}
     for width in tqdm(sites, desc='Second step: calculate ePIS frequency'):
@@ -102,7 +102,22 @@ def pis_freq(align_filter, sites, seq, f_base):
                 tmp_freq.append(pos_freq)
                 tmp_freq.append(tmp_all)
                 freqs.append(tmp_freq)
+    print('len(freqs)', len(freqs))
+    print(freqs[:10])
     return freqs
+
+def pis_freq_cpp(align_filter, sites, seq, f_base):
+    print('Second step (CPP) started')
+    freqs = find_ps_sites_cpp_module.pis_freq(
+        [seqr.seq._data for seqr in align_filter],
+        sites,
+        seq._data,
+        f_base)
+    print('Second step:', len(freqs))
+    print(freqs[:10])
+    return freqs
+
+pis_freq = pis_freq_cpp
 
 # rm_pis根据remove_fq设置了参数，remove_fq频率以上的简约信息位点只包含A,T,C,G序列
 def rm_N_list(alignments, rm_pis, filter_seq):
