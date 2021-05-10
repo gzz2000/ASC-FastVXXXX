@@ -18,10 +18,20 @@ from tqdm import tqdm
 import numpy as np
 import argparse
 import sys
+import pdb
+import build.find_ps_sites as find_ps_sites_cpp_module
 
+def find_ps_sites_cpp(alignment, seq, remove_fq, epis_base):
+    print('First step (CPP) started');
+    all_pis, rm_pis = find_ps_sites_cpp_module.find_ps_sites(
+        [seqr.seq._data for seqr in alignment],
+        seq._data, remove_fq, epis_base)
+    print('First step:', len(all_pis), len(rm_pis))
+    print(all_pis[:10])
+    return all_pis, rm_pis
 
 # 第一轮查找，all_pis为所有有效简约信息文件，rm_pis是根据用户给的阈值筛选一定频率以上用作晒酸基因组在该pis位点均是ATGC碱基的pis位点
-def find_ps_sites(alignment, seq, remove_fq, epis_base):
+def find_ps_sites_py(alignment, seq, remove_fq, epis_base):
     rm_pis = []
     all_pis = []
     default_nc = {'a', 't', 'g', 'c', 'A', 'T', 'C', 'G'}
@@ -52,8 +62,12 @@ def find_ps_sites(alignment, seq, remove_fq, epis_base):
                 # remove_fq 是用户定义的需要删除那些频率以内的碱基是非 “ATCG”的情况
                 if pos_freq > remove_fq:
                     rm_pis.append(width)
+    # pdb.set_trace()
+    print('First step:', len(all_pis), len(rm_pis))
+    print(all_pis[:10])
     return all_pis, rm_pis
 
+find_ps_sites = find_ps_sites_cpp
 
 def pis_freq(align_filter, sites, seq, f_base):
     freqs = []
@@ -89,7 +103,6 @@ def pis_freq(align_filter, sites, seq, f_base):
                 tmp_freq.append(tmp_all)
                 freqs.append(tmp_freq)
     return freqs
-
 
 # rm_pis根据remove_fq设置了参数，remove_fq频率以上的简约信息位点只包含A,T,C,G序列
 def rm_N_list(alignments, rm_pis, filter_seq):
