@@ -83,6 +83,7 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 	auto fn = [&]()
 	{
 		size_t n = 6000 / seqss_upper[0].size();
+    if(n == 0) n = 1;
 		char* buf = new char[0x200000];
 		char* p = buf;
 		while (true)
