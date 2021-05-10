@@ -32,6 +32,7 @@ std::tuple<std::vector<int>, std::vector<int>> find_ps_sites(const std::vector<s
   // epis_base += 1;
   std::vector<int> uniq_nc(alignment[0].length() * num_nc, 0);
   for(int i = 0; i < alignment.size(); ++i) {
+#pragma omp parallel for
     for(int j = 0; j < alignment[0].length(); ++j) {
       int t = idx_nc(alignment[i][j]);
       if(t < 0) continue;
