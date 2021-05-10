@@ -26,6 +26,7 @@ HammingRet hamming(const string& seq1, const string& seq2, const vector<double>&
 	int distance = 0;
 	double max_maf = 0;
 	vector<int> diff;
+	diff.reserve(seq1.size());
 	for (int i = 0; i < seq1.size(); i++)
 	{
 		if (seq1[i] == 'A' || seq1[i] == 'C' || seq1[i] == 'G' || seq1[i] == 'T')
@@ -74,12 +75,13 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 		}
 	}
 	ofstream out(out_file);
-  std::mutex lock_stream;
 	atomic<size_t> I = 0;
+	mutex mu;
 	auto fn = [&]()
 	{
 		size_t n = 6000 / seqss_upper[0].size();
-		char* buf = new char[0x10000 * seqss_upper.size()];
+		char* buf = new char[0x200000];
+		char* p = buf;
 		while (true)
 		{
 			size_t i_begin = 0;
@@ -92,7 +94,6 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 			auto i_end = i_begin + n;
 			if (i_end > seqss_upper.size())
 				i_end = seqss_upper.size();
-			char* p = buf;
 			for (auto j = i_begin + 1; j < seqss_upper.size(); j++)
 			{
 				for (auto i = i_begin; i < i_end; i++)
@@ -100,7 +101,7 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 					if (i < j)
 					{
 						auto hamming_ret = hamming(seqss_upper[i], seqss_upper[j], poss_freq);
-						p += sprintf(p, "%d\t%d\t%d\t%f\t", (int)i, (int)j, hamming_ret.distance, hamming_ret.max_maf);
+						p += sprintf(p, "%zu\t%zu\t%d\t%f\t", i, j, hamming_ret.distance, hamming_ret.max_maf);
 						if (!hamming_ret.diff.empty())
 						{
 							for (int k = 0; k < hamming_ret.diff.size(); k++)
@@ -111,17 +112,29 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 							}
 						}
 						*p++ = '\n';
+						if (p - buf > 0x1f0000)
+						{
+							*p = '\0';
+							mu.lock();
+							out << buf;
+							mu.unlock();
+							p = buf;
+						}
 					}
 				}
 			}
-      *p = '\0';
-      
-      std::scoped_lock<std::mutex> lock(lock_stream);
+		}
+		if (p != buf)
+		{
+			*p = '\0';
+			mu.lock();
 			out << buf;
+			mu.unlock();
+			p = buf;
 		}
 		delete[] buf;
 	};
-	vector<thread> threads(1); // 线程数这里改
+	vector<thread> threads(8); // 线程数这里改
 	for (int i = 0; i < threads.size(); i++)
 		threads[i] = thread(fn);
 	for (int i = 0; i < threads.size(); i++)
