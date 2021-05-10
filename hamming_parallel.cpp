@@ -12,6 +12,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <stdlib.h>
+#include <cstdio>
+
 using namespace std;
 
 struct HammingRet
@@ -91,6 +94,7 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 			
 			if (i_begin >= seqss.size())
 				break;
+      printf("i_begin %d\n", i_begin);
 			auto i_end = i_begin + n;
 			if (i_end > seqss_upper.size())
 				i_end = seqss_upper.size();
@@ -106,7 +110,10 @@ void exec_queue(const vector<string>& seqss, const vector<double>& poss_freq, co
 						{
 							for (int k = 0; k < hamming_ret.diff.size(); k++)
 							{
-								p += sprintf(p, "%d", hamming_ret.diff[k]);
+                p = _itoa(hamming_ret.diff[k], p, 10);
+                while (*p != '\0')
+                  p++;
+								// p += sprintf(p, "%d", hamming_ret.diff[k]);
 								if (k != hamming_ret.diff.size() - 1)
 									*p++ = ',';
 							}
